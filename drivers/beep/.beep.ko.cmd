@@ -1,0 +1,1 @@
+cmd_/home/lsz/linux/IMX6ULL/Projects/device_manager/drivers/beep/beep.ko := arm-linux-gnueabihf-ld -EL -r  -T ./scripts/module-common.lds --build-id  -o /home/lsz/linux/IMX6ULL/Projects/device_manager/drivers/beep/beep.ko /home/lsz/linux/IMX6ULL/Projects/device_manager/drivers/beep/beep.o /home/lsz/linux/IMX6ULL/Projects/device_manager/drivers/beep/beep.mod.o

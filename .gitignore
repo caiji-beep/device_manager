@@ -1,0 +1,13 @@
+# 忽略 C/C++ 编译生成的中间文件
+*.o
+*.ko
+
+# 忽略构建目录 (无论它在哪个子文件夹)
+build-*
+
+# 忽略 Qt 生成的 moc 文件
+moc_*
+
+# 忽略内核模块编译生成的文件
+Module.symvers
+modules.order
