@@ -1,1 +1,0 @@
-cmd_/home/lsz/linux/IMX6ULL/Projects/device_manager/drivers/led/led.ko := arm-linux-gnueabihf-ld -EL -r  -T ./scripts/module-common.lds --build-id  -o /home/lsz/linux/IMX6ULL/Projects/device_manager/drivers/led/led.ko /home/lsz/linux/IMX6ULL/Projects/device_manager/drivers/led/led.o /home/lsz/linux/IMX6ULL/Projects/device_manager/drivers/led/led.mod.o
