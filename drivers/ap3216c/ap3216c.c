@@ -268,3 +268,4 @@ module_i2c_driver(ap3216c_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("lsz");
 MODULE_DESCRIPTION("AP3216C I2C sensor driver");
+
