@@ -154,7 +154,7 @@ static ssize_t ap3216c_read(struct file *filp, char __user *buf,
     data[1] = dev->als;
     data[2] = dev->ps;
     mutex_unlock(&dev->lock);
-    printk("ap3216c_read: IR=%d, ALS=%d, PS=%d\n", data[0], data[1], data[2]);
+    //printk("ap3216c_read: IR=%d, ALS=%d, PS=%d\n", data[0], data[1], data[2]);
      /* 将数据复制到用户空间 */
     err = copy_to_user(buf, data, sizeof(data));
      /* 错误处理 */
