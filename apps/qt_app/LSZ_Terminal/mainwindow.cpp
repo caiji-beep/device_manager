@@ -240,7 +240,7 @@ void MainWindow::on_Ap3216cReadButton_clicked()
         return;
     }
     ui->Ap3216cIrLabel->setText(QString("IR: %1").arg(data.ir));
-    ui->Ap3216cAlsLabel->setText(QString("IR: %1").arg(data.als));
-    ui->Ap3216cPsLabel->setText(QString("IR: %1").arg(data.ps));
+    ui->Ap3216cAlsLabel->setText(QString("ALS: %1").arg(data.als));
+    ui->Ap3216cPsLabel->setText(QString("PS: %1").arg(data.ps));
 }
 
