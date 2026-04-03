@@ -10,6 +10,7 @@ CONFIG += c++11
 
 SOURCES += \
     controller/serialcontroller.cpp \
+    device/ap3216cdevice.cpp \
     device/beepdevice.cpp \
     device/leddevice.cpp \
     device/outputdevice.cpp \
@@ -19,6 +20,7 @@ SOURCES += \
 
 HEADERS += \
     controller/serialcontroller.h \
+    device/ap3216cdevice.h \
     device/beepdevice.h \
     device/leddevice.h \
     device/outputdevice.h \

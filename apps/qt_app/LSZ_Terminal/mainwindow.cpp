@@ -9,17 +9,18 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , m_led()
-    , m_beep()
+    , m_led("/dev/led")
+    , m_beep("/dev/beep")
     , m_serial(this)
     , m_serialCtrl(&m_serial,&m_led,&m_beep,this)
+    , m_ap3216c("/dev/ap3216c")
 {
     ui->setupUi(this);
     if(!m_led.open()){
         QMessageBox::critical(this,
                               "Error",
                               "open /dev/led fail\n" + m_led.lastError());
-        ui->LedOnButton->setEnabled(false);//禁用按钮
+        ui->LedOnButton->setEnabled(false);   //禁用按钮
         ui->LedOffButton->setEnabled(false);
 
         statusBar()->showMessage("LED device initialization failed");
@@ -46,6 +47,17 @@ MainWindow::MainWindow(QWidget *parent)
     else if(m_beep.isReady())
     {
         statusBar()->showMessage("The Beep device is ready");
+    }
+
+    if (!m_ap3216c.open()) {
+        QMessageBox::warning(this,
+                             "Warning",
+                             "Open /dev/ap3216c failed:\n" + m_ap3216c.lastError());
+
+        ui->Ap3216cReadButton->setEnabled(false);
+        statusBar()->showMessage("AP3216C open failed", 3000);
+    } else {
+        statusBar()->showMessage("AP3216C ready", 3000);
     }
 
     connect(&m_serial, &SerialDevice::lineReceived,
@@ -210,5 +222,25 @@ void MainWindow::on_SerialClearLogButton_clicked()
     {
         ui->SerialLogEdit->clear();
     }
+}
+
+
+void MainWindow::on_Ap3216cReadButton_clicked()
+{
+    Ap3216cData data;
+    if (!m_ap3216c.isReady()) {
+        QMessageBox::warning(this, "Prompt", "AP3216C device not ready");
+        return;
+    }
+
+    if (!m_ap3216c.readData(data)) {
+        QMessageBox::warning(this,
+                             "Prompt",
+                             "Read AP3216C failed:\n" + m_ap3216c.lastError());
+        return;
+    }
+    ui->Ap3216cIrLabel->setText(QString("IR: %1").arg(data.ir));
+    ui->Ap3216cAlsLabel->setText(QString("IR: %1").arg(data.als));
+    ui->Ap3216cPsLabel->setText(QString("IR: %1").arg(data.ps));
 }
 

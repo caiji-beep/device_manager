@@ -6,6 +6,7 @@
 #include "device/beepdevice.h"
 #include "device/serialdevice.h"
 #include "controller/serialcontroller.h"
+#include "device/ap3216cdevice.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -34,6 +35,8 @@ private slots:
 
     void on_SerialClearLogButton_clicked();
 
+    void on_Ap3216cReadButton_clicked();
+
 private:
     void appendSerialLog(const QString &msg);
 
@@ -43,5 +46,6 @@ private:
     BeepDevice m_beep;
     SerialDevice m_serial;
     SerialController m_serialCtrl;
+    Ap3216cDevice m_ap3216c;
 };
 #endif // MAINWINDOW_H
