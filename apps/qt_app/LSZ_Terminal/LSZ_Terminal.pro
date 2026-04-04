@@ -17,7 +17,10 @@ SOURCES += \
     device/outputdevice.cpp \
     device/serialdevice.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    pages/controlpage.cpp \
+    pages/sensorpage.cpp \
+    pages/serialpage.cpp
 
 HEADERS += \
     controller/serialcontroller.h \
@@ -27,10 +30,16 @@ HEADERS += \
     device/leddevice.h \
     device/outputdevice.h \
     device/serialdevice.h \
-    mainwindow.h
+    mainwindow.h \
+    pages/controlpage.h \
+    pages/sensorpage.h \
+    pages/serialpage.h
 
 FORMS += \
-    mainwindow.ui
+    mainwindow.ui \
+    pages/controlpage.ui \
+    pages/sensorpage.ui \
+    pages/serialpage.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

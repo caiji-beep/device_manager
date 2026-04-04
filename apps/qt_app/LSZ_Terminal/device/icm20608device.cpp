@@ -75,7 +75,7 @@ bool Icm20608Device::readData(Icm20608Data &data)
     data.accelX = (float)buf[3]/2048.0f;
     data.accelY = (float)buf[4]/2048.0f;
     data.accelZ = (float)buf[5]/2048.0f;;
-    data.temp = ((float)buf[6] - 0.0f)/326.8f + 25.0f;
+    data.temp = ((float)buf[6] - 25.0f)/326.8f + 25.0f;//芯片温度
 
     m_lastError.clear();
     return true;

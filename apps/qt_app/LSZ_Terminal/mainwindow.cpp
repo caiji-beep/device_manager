@@ -3,115 +3,27 @@
 
 #include <QMessageBox>
 #include <QStatusBar>
-#include <QKeyEvent>
-#include <QDebug>
+#include <QListWidget>
+#include <QStackedWidget>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent),
-      ui(new Ui::MainWindow),
-      m_led("/dev/led"),
-      m_beep("/dev/beep"),
-      m_serial(this),
-      m_serialCtrl(&m_serial,&m_led,&m_beep,this),
-      m_ap3216c("/dev/ap3216c"),
-      m_icm20608("/dev/icm20608")
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+    , m_led("/dev/led")
+    , m_beep("/dev/beep")
+    , m_serial(this)
+    , m_serialCtrl(&m_serial, &m_led, &m_beep, this)
+    , m_ap3216c("/dev/ap3216c")
+    , m_icm20608("/dev/icm20608")
+    , m_controlPage(nullptr)
+    , m_serialPage(nullptr)
+    , m_sensorPage(nullptr)
 {
     ui->setupUi(this);
-    if(!m_led.open()){
-        QMessageBox::critical(this,
-                              "Error",
-                              "open /dev/led fail\n" + m_led.lastError());
-        ui->LedOnButton->setEnabled(false);   //禁用按钮
-        ui->LedOffButton->setEnabled(false);
 
-        statusBar()->showMessage("LED device initialization failed");
-
-    }
-    if(!m_beep.open()){
-        QMessageBox::critical(this,
-                              "Error",
-                              "open /dev/beep fail\n" + m_beep.lastError());
-        ui->BeepOnButton->setEnabled(false);//禁用按钮
-        ui->BeepOffButton->setEnabled(false);
-
-        statusBar()->showMessage("Beep device initialization failed");
-
-    }
-    if(m_led.isReady()&&m_beep.isReady())
-    {
-        statusBar()->showMessage("The LED and beep device are ready");
-    }
-    else if(m_led.isReady())
-    {
-        statusBar()->showMessage("The LED device is ready");
-    }
-    else if(m_beep.isReady())
-    {
-        statusBar()->showMessage("The Beep device is ready");
-    }
-
-    if (!m_ap3216c.open()) {
-        QMessageBox::warning(this,
-                             "Warning",
-                             "Open /dev/ap3216c failed:\n" + m_ap3216c.lastError());
-
-        ui->Ap3216cReadButton->setEnabled(false);
-        statusBar()->showMessage("AP3216C open failed", 3000);
-    } else {
-        statusBar()->showMessage("AP3216C ready", 3000);
-    }
-
-    if (!m_icm20608.open()) {
-        QMessageBox::warning(this,
-                             "Warning",
-                             "Open /dev/icm20608 failed:\n" + m_icm20608.lastError());
-
-        ui->Icm20608ReadButton->setEnabled(false);
-        statusBar()->showMessage("icm20608 open failed", 3000);
-    } else {
-        statusBar()->showMessage("icm20608 ready", 3000);
-    }
-
-    connect(&m_serial, &SerialDevice::lineReceived,
-            &m_serialCtrl, &SerialController::handleLine);
-
-    connect(&m_serial, &SerialDevice::logMessage,
-            this, &MainWindow::onSerialLogMessage);
-    connect(&m_serial, &SerialDevice::errorMessage,
-            this, &MainWindow::onSerialErrorMessage);
-
-    connect(&m_serialCtrl, &SerialController::logMessage,
-            this, &MainWindow::onSerialLogMessage);
-    connect(&m_serialCtrl, &SerialController::errorMessage,
-            this, &MainWindow::onSerialErrorMessage);
-
-    connect(ui->SerialInputlineEdit, &QLineEdit::returnPressed,
-            this, &MainWindow::on_SerialSendButton_clicked);
-
-
-    if(ui->SerialLogEdit){
-        ui->SerialLogEdit->setReadOnly(true);
-    }
-    if(ui->SerialInputlineEdit){
-        ui->SerialInputlineEdit->setPlaceholderText("Enter command,e.g. ping / status / led on");
-    }
-
-    if (!m_serial.open("/dev/ttymxc2", 115200)) {
-        statusBar()->showMessage("Serial initialization failed");
-        if(ui->SerialStatusLabel)
-        {
-            ui->SerialStatusLabel->setText("Serial: Error");
-        }
-        appendSerialLog("[ERROR] open /dev/ttymxc2 failed: " + m_serial.lastError());
-    } else {
-        m_serial.sendLine("READY");
-        statusBar()->showMessage("Serial is ready");
-        if(ui->SerialStatusLabel)
-        {
-            ui->SerialStatusLabel->setText("Serial: Ready");
-        }
-    }
-    appendSerialLog("Serial: Ready");
+    setupPages();
+    setupDevices();
+    setupSerial();
 }
 
 MainWindow::~MainWindow()
@@ -119,166 +31,119 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-
-void MainWindow::on_LedOnButton_clicked()
+void MainWindow::setupPages()
 {
-    if (!m_led.turnOn()) {
+    while (ui->PageStack->count() > 0) {
+        QWidget *page = ui->PageStack->widget(0);
+        ui->PageStack->removeWidget(page);
+        page->deleteLater();
+    }
+
+    m_controlPage = new ControlPage(this);
+    m_serialPage  = new SerialPage(this);
+    m_sensorPage  = new SensorPage(this);
+
+    m_controlPage->setDevices(&m_led, &m_beep);
+    m_serialPage->setSerialDevice(&m_serial);
+    m_sensorPage->setDevices(&m_ap3216c, &m_icm20608);
+
+    ui->PageStack->addWidget(m_controlPage);
+    ui->PageStack->addWidget(m_serialPage);
+    ui->PageStack->addWidget(m_sensorPage);
+
+    ui->NavListWidget->addItem("Device Control");
+    ui->NavListWidget->addItem("Serial Monitor");
+    ui->NavListWidget->addItem("Sensors");
+
+    connect(ui->NavListWidget, &QListWidget::currentRowChanged,
+            ui->PageStack, &QStackedWidget::setCurrentIndex);
+
+    ui->NavListWidget->setCurrentRow(0);
+
+    connect(m_controlPage, &ControlPage::statusMessage,
+            this, [this](const QString &msg, int timeout){
+        statusBar()->showMessage(msg, timeout);
+    });
+
+    connect(m_serialPage, &SerialPage::statusMessage,
+            this, [this](const QString &msg, int timeout){
+        statusBar()->showMessage(msg, timeout);
+    });
+
+    connect(m_sensorPage, &SensorPage::statusMessage,
+            this, [this](const QString &msg, int timeout){
+        statusBar()->showMessage(msg, timeout);
+    });
+}
+
+void MainWindow::setupDevices()
+{
+    bool ledOk = m_led.open();
+    if (!ledOk) {
+        QMessageBox::critical(this,
+                              "Error",
+                              "open /dev/led fail\n" + m_led.lastError());
+    }
+    m_controlPage->setLedAvailable(ledOk);
+
+    bool beepOk = m_beep.open();
+    if (!beepOk) {
+        QMessageBox::critical(this,
+                              "Error",
+                              "open /dev/beep fail\n" + m_beep.lastError());
+    }
+    m_controlPage->setBeepAvailable(beepOk);
+
+    bool apOk = m_ap3216c.open();
+    if (!apOk) {
         QMessageBox::warning(this,
-                             "Prompt",
-                             "Failed to turn on the light\n" + m_led.lastError());
-        return;
+                             "Warning",
+                             "Open /dev/ap3216c failed:\n" + m_ap3216c.lastError());
     }
+    m_sensorPage->setAp3216cAvailable(apOk);
 
-    appendSerialLog("LOCAL: led on");
-    statusBar()->showMessage("The LED is on", 2000);
-}
-
-
-void MainWindow::on_LedOffButton_clicked()
-{
-    if (!m_led.turnOff()) {
+    bool icmOk = m_icm20608.open();
+    if (!icmOk) {
         QMessageBox::warning(this,
-                             "Prompt",
-                             "Failed to turn off the light\n" + m_led.lastError());
-        return;
+                             "Warning",
+                             "Open /dev/icm20608 failed:\n" + m_icm20608.lastError());
     }
+    m_sensorPage->setIcm20608Available(icmOk);
 
-    appendSerialLog("LOCAL: led off");
-    statusBar()->showMessage("The LED is off", 2000);
+    if (ledOk && beepOk && apOk && icmOk) {
+        statusBar()->showMessage("All local devices are ready", 3000);
+    } else {
+        statusBar()->showMessage("Some local devices failed to open", 5000);
+    }
 }
 
-
-void MainWindow::on_BeepOnButton_clicked()
+void MainWindow::setupSerial()
 {
-    if (!m_beep.turnOn()) {
-        QMessageBox::warning(this,
-                             "Prompt",
-                             "Failed to turn on the beep\n" + m_beep.lastError());
+    connect(&m_serial, &SerialDevice::lineReceived,
+            &m_serialCtrl, &SerialController::handleLine);
+
+    connect(&m_serial, &SerialDevice::logMessage,
+            m_serialPage, &SerialPage::appendLogMessage);
+
+    connect(&m_serial, &SerialDevice::errorMessage,
+            m_serialPage, &SerialPage::appendErrorMessage);
+
+    connect(&m_serialCtrl, &SerialController::logMessage,
+            m_serialPage, &SerialPage::appendLogMessage);
+
+    connect(&m_serialCtrl, &SerialController::errorMessage,
+            m_serialPage, &SerialPage::appendErrorMessage);
+
+    if (!m_serial.open("/dev/ttymxc2", 115200)) {
+        m_serialPage->setSerialReady(false);
+        m_serialPage->appendErrorMessage("open /dev/ttymxc2 failed: " + m_serial.lastError());
+        statusBar()->showMessage("Serial initialization failed", 5000);
         return;
     }
 
-    appendSerialLog("LOCAL: beep on");
-    statusBar()->showMessage("The Beep is on", 2000);
+    m_serialPage->setSerialReady(true);
+    m_serialPage->appendLogMessage("Serial: Ready");
+    m_serial.sendLine("READY");
+
+    statusBar()->showMessage("Serial is ready", 3000);
 }
-
-
-void MainWindow::on_BeepOffButton_clicked()
-{
-    if (!m_beep.turnOff()) {
-        QMessageBox::warning(this,
-                             "Prompt",
-                             "Failed to turn off the beep\n" + m_beep.lastError());
-        return;
-    }
-
-    appendSerialLog("LOCAL: beep off");
-    statusBar()->showMessage("The Beep is off", 2000);
-}
-
-void MainWindow::onSerialLogMessage(const QString &msg)
-{
-    qDebug() << msg;
-    appendSerialLog(msg);
-    statusBar()->showMessage(msg, 3000);
-}
-
-void MainWindow::onSerialErrorMessage(const QString &msg)
-{
-    qDebug() << msg;
-    appendSerialLog("[ERROR]" + msg);
-    statusBar()->showMessage(msg, 5000);
-    if(ui->SerialStatusLabel){
-        ui->SerialStatusLabel->setText("Serial: Error");
-    }
-}
-
-void MainWindow::appendSerialLog(const QString &msg)
-{
-    if(!ui || !ui->SerialLogEdit)
-    {
-        return;
-    }
-    ui->SerialLogEdit->appendPlainText(msg);
-}
-
-void MainWindow::on_SerialSendButton_clicked()
-{
-    if (!m_serial.isReady()) {
-        appendSerialLog("[ERROR] serial not ready");
-        statusBar()->showMessage("Serial not ready", 3000);
-        if (ui->SerialStatusLabel) {
-            ui->SerialStatusLabel->setText("Serial: Not Ready");
-        }
-        return;
-    }
-
-    QString text = ui->SerialInputlineEdit->text().trimmed();
-    if(text.isEmpty()){
-        return;
-    }
-    if(!m_serial.sendLine(text))
-    {
-        appendSerialLog("[ERROR] send failed: " + m_serial.lastError());
-        statusBar()->showMessage("Serial send failed",3000);
-    }
-
-    ui->SerialInputlineEdit->clear();
-
-    return;
-}
-
-
-void MainWindow::on_SerialClearLogButton_clicked()
-{
-    if(ui->SerialLogEdit)
-    {
-        ui->SerialLogEdit->clear();
-    }
-}
-
-
-void MainWindow::on_Ap3216cReadButton_clicked()
-{
-    Ap3216cData data;
-    if (!m_ap3216c.isReady()) {
-        QMessageBox::warning(this, "Prompt", "AP3216C device not ready");
-        return;
-    }
-
-    if (!m_ap3216c.readData(data)) {
-        QMessageBox::warning(this,
-                             "Prompt",
-                             "Read AP3216C failed:\n" + m_ap3216c.lastError());
-        return;
-    }
-    ui->Ap3216cIrLabel->setText(QString("IR: %1").arg(data.ir));
-    ui->Ap3216cAlsLabel->setText(QString("ALS: %1").arg(data.als));
-    ui->Ap3216cPsLabel->setText(QString("PS: %1").arg(data.ps));
-}
-
-
-void MainWindow::on_Icm20608ReadButton_clicked()
-{
-    Icm20608Data data;
-    if (!m_icm20608.isReady()) {
-        QMessageBox::warning(this, "Prompt", "icm20608 device not ready");
-        return;
-    }
-
-    if (!m_icm20608.readData(data)) {
-        QMessageBox::warning(this,
-                             "Prompt",
-                             "Read icm20608 failed:\n" + m_icm20608.lastError());
-        return;
-    }
-    ui->IcmAccelXLabel->setText(QString::asprintf("Accel X: %.2f g", data.accelX));
-    ui->IcmAccelYLabel->setText(QString::asprintf("Accel Y: %.2f g", data.accelY));
-    ui->IcmAccelZLabel->setText(QString::asprintf("Accel Z: %.2f g", data.accelZ));
-
-    ui->IcmGyroXLabel->setText(QString::asprintf("Gyro X: %.2f °/s", data.gyroX));
-    ui->IcmGyroYLabel->setText(QString::asprintf("Gyro Y: %.2f °/s", data.gyroY));
-    ui->IcmGyroZLabel->setText(QString::asprintf("Gyro Z: %.2f °/s", data.gyroZ));
-
-    ui->IcmTempLabel->setText(QString::asprintf("Temp: %.2f  °C", data.temp));
-}
-
