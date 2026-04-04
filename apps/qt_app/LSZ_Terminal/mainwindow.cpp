@@ -7,13 +7,14 @@
 #include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-    , m_led("/dev/led")
-    , m_beep("/dev/beep")
-    , m_serial(this)
-    , m_serialCtrl(&m_serial,&m_led,&m_beep,this)
-    , m_ap3216c("/dev/ap3216c")
+    : QMainWindow(parent),
+      ui(new Ui::MainWindow),
+      m_led("/dev/led"),
+      m_beep("/dev/beep"),
+      m_serial(this),
+      m_serialCtrl(&m_serial,&m_led,&m_beep,this),
+      m_ap3216c("/dev/ap3216c"),
+      m_icm20608("/dev/icm20608")
 {
     ui->setupUi(this);
     if(!m_led.open()){
@@ -58,6 +59,17 @@ MainWindow::MainWindow(QWidget *parent)
         statusBar()->showMessage("AP3216C open failed", 3000);
     } else {
         statusBar()->showMessage("AP3216C ready", 3000);
+    }
+
+    if (!m_icm20608.open()) {
+        QMessageBox::warning(this,
+                             "Warning",
+                             "Open /dev/icm20608 failed:\n" + m_icm20608.lastError());
+
+        ui->Icm20608ReadButton->setEnabled(false);
+        statusBar()->showMessage("icm20608 open failed", 3000);
+    } else {
+        statusBar()->showMessage("icm20608 ready", 3000);
     }
 
     connect(&m_serial, &SerialDevice::lineReceived,
@@ -242,5 +254,31 @@ void MainWindow::on_Ap3216cReadButton_clicked()
     ui->Ap3216cIrLabel->setText(QString("IR: %1").arg(data.ir));
     ui->Ap3216cAlsLabel->setText(QString("ALS: %1").arg(data.als));
     ui->Ap3216cPsLabel->setText(QString("PS: %1").arg(data.ps));
+}
+
+
+void MainWindow::on_Icm20608ReadButton_clicked()
+{
+    Icm20608Data data;
+    if (!m_icm20608.isReady()) {
+        QMessageBox::warning(this, "Prompt", "icm20608 device not ready");
+        return;
+    }
+
+    if (!m_icm20608.readData(data)) {
+        QMessageBox::warning(this,
+                             "Prompt",
+                             "Read icm20608 failed:\n" + m_icm20608.lastError());
+        return;
+    }
+    ui->IcmAccelXLabel->setText(QString::asprintf("Accel X: %.2f g", data.accelX));
+    ui->IcmAccelYLabel->setText(QString::asprintf("Accel Y: %.2f g", data.accelY));
+    ui->IcmAccelZLabel->setText(QString::asprintf("Accel Z: %.2f g", data.accelZ));
+
+    ui->IcmGyroXLabel->setText(QString::asprintf("Gyro X: %.2f °/s", data.gyroX));
+    ui->IcmGyroYLabel->setText(QString::asprintf("Gyro Y: %.2f °/s", data.gyroY));
+    ui->IcmGyroZLabel->setText(QString::asprintf("Gyro Z: %.2f °/s", data.gyroZ));
+
+    ui->IcmTempLabel->setText(QString::asprintf("Temp: %.2f  °C", data.temp));
 }
 

@@ -12,6 +12,7 @@ SOURCES += \
     controller/serialcontroller.cpp \
     device/ap3216cdevice.cpp \
     device/beepdevice.cpp \
+    device/icm20608device.cpp \
     device/leddevice.cpp \
     device/outputdevice.cpp \
     device/serialdevice.cpp \
@@ -22,6 +23,7 @@ HEADERS += \
     controller/serialcontroller.h \
     device/ap3216cdevice.h \
     device/beepdevice.h \
+    device/icm20608device.h \
     device/leddevice.h \
     device/outputdevice.h \
     device/serialdevice.h \

@@ -7,6 +7,7 @@
 #include "device/serialdevice.h"
 #include "controller/serialcontroller.h"
 #include "device/ap3216cdevice.h"
+#include "device/icm20608device.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -37,6 +38,8 @@ private slots:
 
     void on_Ap3216cReadButton_clicked();
 
+    void on_Icm20608ReadButton_clicked();
+
 private:
     void appendSerialLog(const QString &msg);
 
@@ -47,5 +50,6 @@ private:
     SerialDevice m_serial;
     SerialController m_serialCtrl;
     Ap3216cDevice m_ap3216c;
+    Icm20608Device m_icm20608;
 };
 #endif // MAINWINDOW_H
