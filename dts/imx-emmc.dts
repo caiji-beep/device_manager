@@ -142,36 +142,32 @@
 		};
 	};
 	/*lsz 2026/1/4*/
-	alphaled{
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "alientek,alphaled";
-		status = "okay";
-		reg = < 0X020C406C 0x04 	/* CCM_CCGR1_BASE */
-				0X020E0068 0x04		/* SW_MUX_GPIO1_IO03_BASE */
-				0X020E02F4 0x04		/* SW_PAD_GPIO1_IO03_BASE */
-				0X0209C000 0x04		/* GPIO1_DR_BASE */
-				0X0209C004 0x04 >;	/* GPIO1_GDIR_BASE */
+	// alphaled{
+	// 	#address-cells = <1>;
+	// 	#size-cells = <1>;
+	// 	compatible = "alientek,alphaled";
+	// 	status = "okay";
+	// 	reg = < 0X020C406C 0x04 	/* CCM_CCGR1_BASE */
+	// 			0X020E0068 0x04		/* SW_MUX_GPIO1_IO03_BASE */
+	// 			0X020E02F4 0x04		/* SW_PAD_GPIO1_IO03_BASE */
+	// 			0X0209C000 0x04		/* GPIO1_DR_BASE */
+	// 			0X0209C004 0x04 >;	/* GPIO1_GDIR_BASE */
 			
-	};
-	gpioled{
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "lsz-atkalpha-gpioled";
+	// };
+	led {
+		compatible = "lsz,atkalpha-led";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_led>;
 		led-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
-		status = "okay";			
+		status = "okay";
 	};
 
-	beep{
-		//#address-cells = <1>;//子节点的 reg 属性
-		//#size-cells = <1>;//子节点的 reg 属性
-		compatible = "lsz-atkalpha-beep";
+	beep {
+		compatible = "lsz,atkalpha-beep";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_beep>;
 		beep-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
-		status = "okay";			
+		status = "okay";
 	};
 
 	// key{
@@ -186,17 +182,17 @@
 	// 	interrupts = <18 IRQ_TYPE_EDGE_BOTH>;
 
 	// };
-	dtsleds {
-		compatible = "gpio-leds";
-		led0 {
-			label = "red";
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_led>;
-			//gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
-			default-state = "on";
-			linux,default-trigger = "heartbeat";
-		};
-	};
+	// dtsleds {
+	// 	compatible = "gpio-leds";
+	// 	led0 {
+	// 		label = "red";
+	// 		pinctrl-names = "default";
+	// 		pinctrl-0 = <&pinctrl_led>;
+	// 		//gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+	// 		default-state = "on";
+	// 		linux,default-trigger = "heartbeat";
+	// 	};
+	// };
 	gpio_keys{
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -313,7 +309,7 @@
 	};
 
 	ap3216c@1e {
-		compatible = "alientek,ap3216c";
+		compatible = "lsz,ap3216c";
 		reg = <0x1e>;
 	};
 };
@@ -823,7 +819,7 @@
 	/* for DTE mode, add below change */
 	/* fsl,dte-mode; */
 	/* pinctrl-0 = <&pinctrl_uart2dte>; */
-	status = "disable";
+	status = "disabled";
 };
 
 &uart3 {
@@ -892,7 +888,7 @@
 	status = "okay";
 
 	spidev0: icm20608@0 {   
-		compatible = "alientek,icm20608";   
+		compatible = "lsz,icm20608";   
 		spi-max-frequency = <8000000>;  
 		reg = <0>;   
 	};
