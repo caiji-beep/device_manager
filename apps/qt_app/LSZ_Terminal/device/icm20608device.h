@@ -3,6 +3,7 @@
 
 
 #include <QString>
+#include <QMetaType>
 
 struct Icm20608Data
 {
@@ -15,6 +16,8 @@ struct Icm20608Data
     float temp;
 
 };
+
+Q_DECLARE_METATYPE(Icm20608Data)
 
 class Icm20608Device
 {

@@ -2,6 +2,7 @@
 #define AP3216CDEVICE_H
 
 #include <QString>
+#include <QMetaType>
 
 struct Ap3216cData
 {
@@ -9,6 +10,7 @@ struct Ap3216cData
     unsigned short als = 0;
     unsigned short ps = 0;
 };
+Q_DECLARE_METATYPE(Ap3216cData)
 
 class Ap3216cDevice
 {

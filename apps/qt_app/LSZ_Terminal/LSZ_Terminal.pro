@@ -20,7 +20,9 @@ SOURCES += \
     mainwindow.cpp \
     pages/controlpage.cpp \
     pages/sensorpage.cpp \
-    pages/serialpage.cpp
+    pages/serialpage.cpp \
+    workers/ap3216cworker.cpp \
+    workers/icm20608worker.cpp
 
 HEADERS += \
     controller/serialcontroller.h \
@@ -33,7 +35,9 @@ HEADERS += \
     mainwindow.h \
     pages/controlpage.h \
     pages/sensorpage.h \
-    pages/serialpage.h
+    pages/serialpage.h \
+    workers/ap3216cworker.h \
+    workers/icm20608worker.h
 
 FORMS += \
     mainwindow.ui \

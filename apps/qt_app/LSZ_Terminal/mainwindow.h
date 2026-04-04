@@ -36,8 +36,7 @@ private:
     BeepDevice m_beep;
     SerialDevice m_serial;
     SerialController m_serialCtrl;
-    Ap3216cDevice m_ap3216c;
-    Icm20608Device m_icm20608;
+
 
     ControlPage *m_controlPage;
     SerialPage *m_serialPage;

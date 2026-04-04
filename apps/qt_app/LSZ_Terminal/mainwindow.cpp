@@ -13,17 +13,15 @@ MainWindow::MainWindow(QWidget *parent)
     , m_beep("/dev/beep")
     , m_serial(this)
     , m_serialCtrl(&m_serial, &m_led, &m_beep, this)
-    , m_ap3216c("/dev/ap3216c")
-    , m_icm20608("/dev/icm20608")
     , m_controlPage(nullptr)
     , m_serialPage(nullptr)
     , m_sensorPage(nullptr)
 {
     ui->setupUi(this);
 
-    setupPages();
-    setupDevices();
-    setupSerial();
+    setupPages();  //搭建前厅界面
+    setupDevices(); //唤醒本地硬件
+    setupSerial();  //建立串口通信
 }
 
 MainWindow::~MainWindow()
@@ -33,6 +31,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupPages()
 {
+    //清理默认界面
     while (ui->PageStack->count() > 0) {
         QWidget *page = ui->PageStack->widget(0);
         ui->PageStack->removeWidget(page);
@@ -45,7 +44,6 @@ void MainWindow::setupPages()
 
     m_controlPage->setDevices(&m_led, &m_beep);
     m_serialPage->setSerialDevice(&m_serial);
-    m_sensorPage->setDevices(&m_ap3216c, &m_icm20608);
 
     ui->PageStack->addWidget(m_controlPage);
     ui->PageStack->addWidget(m_serialPage);
@@ -94,23 +92,8 @@ void MainWindow::setupDevices()
     }
     m_controlPage->setBeepAvailable(beepOk);
 
-    bool apOk = m_ap3216c.open();
-    if (!apOk) {
-        QMessageBox::warning(this,
-                             "Warning",
-                             "Open /dev/ap3216c failed:\n" + m_ap3216c.lastError());
-    }
-    m_sensorPage->setAp3216cAvailable(apOk);
 
-    bool icmOk = m_icm20608.open();
-    if (!icmOk) {
-        QMessageBox::warning(this,
-                             "Warning",
-                             "Open /dev/icm20608 failed:\n" + m_icm20608.lastError());
-    }
-    m_sensorPage->setIcm20608Available(icmOk);
-
-    if (ledOk && beepOk && apOk && icmOk) {
+    if (ledOk && beepOk) {
         statusBar()->showMessage("All local devices are ready", 3000);
     } else {
         statusBar()->showMessage("Some local devices failed to open", 5000);

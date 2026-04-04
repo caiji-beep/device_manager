@@ -30,26 +30,13 @@
     <rect>
      <x>210</x>
      <y>10</y>
-     <width>171</width>
+     <width>331</width>
      <height>151</height>
     </rect>
    </property>
    <property name="title">
     <string>光感传感器 (AP3216C)</string>
    </property>
-   <widget class="QPushButton" name="Ap3216cReadButton">
-    <property name="geometry">
-     <rect>
-      <x>18</x>
-      <y>30</y>
-      <width>141</width>
-      <height>25</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Read AP3216C</string>
-    </property>
-   </widget>
    <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
@@ -83,6 +70,57 @@
      </item>
     </layout>
    </widget>
+   <widget class="QPushButton" name="Ap3216cStartButton">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>30</y>
+      <width>121</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Start AP3216C</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="Ap3216cStopButton">
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>30</y>
+      <width>121</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Stop AP3216C</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="Ap3216cIntervalBox">
+    <property name="geometry">
+     <rect>
+      <x>220</x>
+      <y>60</y>
+      <width>86</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>200</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>500</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>1000</string>
+     </property>
+    </item>
+   </widget>
   </widget>
   <widget class="QGroupBox" name="groupBox_4">
    <property name="geometry">
@@ -94,21 +132,8 @@
     </rect>
    </property>
    <property name="title">
-    <string>六轴传感器 (ICM-20608)</string>
+    <string>六轴传感器 (ICM20608)</string>
    </property>
-   <widget class="QPushButton" name="Icm20608ReadButton">
-    <property name="geometry">
-     <rect>
-      <x>110</x>
-      <y>40</y>
-      <width>171</width>
-      <height>25</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Read Icm20608</string>
-    </property>
-   </widget>
    <widget class="QLabel" name="IcmTempLabel">
     <property name="geometry">
      <rect>
@@ -187,6 +212,57 @@
       </widget>
      </item>
     </layout>
+   </widget>
+   <widget class="QPushButton" name="Icm20608StartButton">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>30</y>
+      <width>131</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Start Icm20608</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="Icm20608StopButton">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>30</y>
+      <width>131</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Stop Icm20608</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="Icm20608IntervalBox">
+    <property name="geometry">
+     <rect>
+      <x>280</x>
+      <y>60</y>
+      <width>86</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>50</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>100</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>200</string>
+     </property>
+    </item>
    </widget>
   </widget>
  </widget>
