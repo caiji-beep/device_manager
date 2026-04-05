@@ -109,15 +109,16 @@ void SensorPage::setupWorkers()
 void SensorPage::stopWorkers()
 {
     if (m_apWorker) {
-        emit stopApWorker();
+        QMetaObject::invokeMethod(
+            m_apWorker, "stopWork", Qt::BlockingQueuedConnection);
     }
     if (m_apThread) {
         m_apThread->quit();
         m_apThread->wait();
     }
-
     if (m_icmWorker) {
-        emit stopIcmWorker();
+        QMetaObject::invokeMethod(
+            m_icmWorker, "stopWork", Qt::BlockingQueuedConnection);
     }
     if (m_icmThread) {
         m_icmThread->quit();
