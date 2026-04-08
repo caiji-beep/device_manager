@@ -5,6 +5,8 @@
 *.mod.o
 *.cmd
 
+*.codex
+
 
 ui_*.h
 
