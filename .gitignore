@@ -6,6 +6,7 @@
 *.cmd
 
 *.codex
+*.mod
 
 
 ui_*.h
