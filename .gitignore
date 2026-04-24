@@ -7,7 +7,7 @@
 
 *.codex
 *.mod
-
+*.vscode
 
 ui_*.h
 
