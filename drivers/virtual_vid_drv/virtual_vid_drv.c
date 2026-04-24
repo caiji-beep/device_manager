@@ -9,6 +9,31 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 
+/* Virtual Camera API commands (from Virtual Library) */
+enum
+{
+	CMD_INVALID = 0x00,
+	CMD_RECEIVER_MODE = 0x01,
+	CMD_SI5351C_WRITE = 0x02,
+	CMD_SI5351C_READ = 0x03,
+	CMD_R820T_WRITE = 0x04,
+	CMD_R820T_READ = 0x05,
+	CMD_SPIFLASH_ERASE = 0x06,
+	CMD_SPIFLASH_WRITE = 0x07,
+	CMD_SPIFLASH_READ = 0x08,
+	CMD_BOARD_ID_READ = 0x09,
+	CMD_VERSION_STRING_READ = 0x0a,
+	CMD_BOARD_PARTID_SERIALNO_READ = 0x0b,
+	CMD_SET_SAMPLE_RATE = 0x0c,
+	CMD_SET_FREQ = 0x0d,
+	CMD_SET_LNA_GAIN = 0x0e,
+	CMD_SET_MIXER_GAIN = 0x0f,
+	CMD_SET_VGA_GAIN = 0x10,
+	CMD_SET_LNA_AGC = 0x11,
+	CMD_SET_MIXER_AGC = 0x12,
+	CMD_SET_PACKING = 0x13,
+};
+
 #define VIRTUAL_VIDEO_BUFFER_SIZE (2 * 800 * 600)
 
 extern unsigned char red[8230];
@@ -98,6 +123,14 @@ struct virtual_video
 
 	u32 sequence; // 帧计数器：0, 1, 2, 3...
 	u32 frame_index;
+
+	/* Controls */
+	struct v4l2_ctrl_handler hdl;
+	struct v4l2_ctrl *ctrl_brightness_auto;
+	struct v4l2_ctrl *ctrl_brightness;
+
+	int autobrightness;
+	int brightness;
 };
 
 /* Videobuf2 operations */
@@ -150,6 +183,7 @@ static int virtual_video_start_streaming(struct vb2_queue *vq, unsigned int coun
 	struct virtual_video *vvid = vb2_get_drv_priv(vq);
 
 	vvid->sequence = 0;
+	vvid->frame_index = 0;
 
 	mod_timer(&vvid->my_timer, jiffies + HZ / 30);
 
@@ -163,27 +197,22 @@ static void virtual_video_stop_streaming(struct vb2_queue *vq)
 	struct virtual_video *vvid = vb2_get_drv_priv(vq);
 	unsigned long flags;
 
-	
-
 	/* stop hardware streaming */
-	
-
 
 	del_timer_sync(&vvid->my_timer);
 	/*清空buffer*/
 
 	spin_lock_irqsave(&vvid->queued_bufs_lock, flags);
-	while (!list_empty(&vvid->queued_bufs)) {
+	while (!list_empty(&vvid->queued_bufs))
+	{
 		struct virtual_video_frame_buf *buf;
 
 		buf = list_entry(vvid->queued_bufs.next,
-				struct virtual_video_frame_buf, list);//container_of
+						 struct virtual_video_frame_buf, list); // container_of
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&vvid->queued_bufs_lock, flags);
-
-	
 }
 
 static struct vb2_ops virtual_video_vb2_ops = {
@@ -210,7 +239,7 @@ static int virtual_video_enum_fmt_vid_cap(struct file *file, void *priv,
 static int virtual_video_enum_framesizes(struct file *file, void *priv,
 										 struct v4l2_frmsizeenum *fsize)
 {
-	//struct virtual_video *vvid = video_drvdata(file);
+	// struct virtual_video *vvid = video_drvdata(file);
 
 	struct virtual_video_format *format = NULL;
 	int i;
@@ -300,8 +329,8 @@ static int virtual_video_s_fmt_vid_cap(struct file *file, void *priv,
 	}
 	if (!match)
 	{
-		f->fmt.pix.width = fmt->framesize[0].width;
-		f->fmt.pix.height = fmt->framesize[0].height;
+		f->fmt.pix.width = fmt->framesize[1].width;
+		f->fmt.pix.height = fmt->framesize[1].height;
 	}
 
 	f->fmt.pix.field = V4L2_FIELD_NONE; // 强制逐行扫描
@@ -435,21 +464,64 @@ static void virtual_video_timer_callback(unsigned long data)
 		else
 		{
 			payload_size = sizeof(red);
-			memcpy(vaddr, red, payload_size);	
-			vvid->frame_index = 0;
+			memcpy(vaddr, red, payload_size);
 		}
 	}
 	vvid->frame_index++;
-	
+	if (vvid->frame_index <= 90)
+	{
+		vvid->frame_index = 0;
+	}
 
-	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);	 // 打上时间戳
-	buf->vb.v4l2_buf.sequence = vvid->sequence++; // 打上序号
+	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp); // 打上时间戳
+	buf->vb.v4l2_buf.sequence = vvid->sequence++;	 // 打上序号
 	vb2_set_plane_payload(&buf->vb, 0, payload_size);
 	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
 
 out:
 	mod_timer(&vvid->my_timer, jiffies + HZ / 30);
 }
+
+static int virtual_video_set_brightness(struct virtual_video *vvid, int is_auto,int brightness_num)
+{
+	int ret = 0;
+	vvid->autobrightness = is_auto;
+	vvid->brightness = brightness_num;
+	if(is_auto)
+	{
+		pr_info("virtual_video: Auto-Brightness ON! Hardware takes over.\n");
+	}
+	else
+	{
+		pr_info("virtual_video: Auto-Brightness OFF! Manual set to %d\n", vvid->brightness);
+	}	
+
+	return ret;
+}
+
+static int virtual_video_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct virtual_video *vvid = container_of(ctrl->handler, struct virtual_video, hdl);
+	int ret;
+
+	switch (ctrl->id)
+	{
+	case V4L2_CID_AUTOBRIGHTNESS:
+		ret = virtual_video_set_brightness(vvid, ctrl->val,ctrl->cluster[1]->val);
+		break;
+
+	default:
+		pr_info("unknown ctrl: id=%d name=%s\n",
+				ctrl->id, ctrl->name);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops virtual_video_ctrl_ops = {
+	.s_ctrl = virtual_video_s_ctrl,
+};
 
 static int __init virtual_video_init(void)
 {
@@ -516,6 +588,29 @@ static int __init virtual_video_init(void)
 		goto err_free_mem;
 	}
 
+	/* Register controls */
+	v4l2_ctrl_handler_init(&vvid->hdl, 2);
+
+	// 参数：句柄, ops, ID, 最小值, 最大值, 步长, 默认值
+	vvid->ctrl_brightness_auto = v4l2_ctrl_new_std(&vvid->hdl, &virtual_video_ctrl_ops,
+								 V4L2_CID_AUTOBRIGHTNESS, 0, 1, 1, 1);
+	vvid->ctrl_brightness = v4l2_ctrl_new_std(&vvid->hdl, &virtual_video_ctrl_ops,
+					  		V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	
+	v4l2_ctrl_auto_cluster(2,&vvid->ctrl_brightness_auto,0,false);
+
+	if (vvid->hdl.error)
+	{
+		ret = vvid->hdl.error;
+		pr_err("Could not initialize controls\n");
+		goto err_free_controls;
+	}
+
+	// 将句柄关联到 v4l2_device
+	vvid->v4l2_dev.ctrl_handler = &vvid->hdl;
+
+	v4l2_ctrl_handler_setup(&vvid->hdl); // 应用默认值
+
 	vvid->vdev.v4l2_dev = &vvid->v4l2_dev;
 	vvid->vdev.lock = &vvid->v4l2_lock;
 
@@ -532,6 +627,8 @@ static int __init virtual_video_init(void)
 
 	return 0;
 
+err_free_controls:
+	v4l2_ctrl_handler_free(&vvid->hdl);
 err_unregister_v4l2_dev:
 	v4l2_device_unregister(&vvid->v4l2_dev);
 err_free_mem:
@@ -546,6 +643,7 @@ static void __exit virtual_video_exit(void)
 	if (vvid)
 	{
 		del_timer_sync(&vvid->my_timer);
+		v4l2_ctrl_handler_free(&vvid->hdl);
 		video_unregister_device(&vvid->vdev);	 // 先注销暴露给应用层的 /dev/videoX 节点
 		v4l2_device_unregister(&vvid->v4l2_dev); // 注销底层的 v4l2_device
 		kfree(vvid);
