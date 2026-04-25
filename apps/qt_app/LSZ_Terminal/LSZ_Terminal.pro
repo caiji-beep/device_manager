@@ -16,13 +16,16 @@ SOURCES += \
     device/leddevice.cpp \
     device/outputdevice.cpp \
     device/serialdevice.cpp \
+    device/videodevice.cpp \
     main.cpp \
     mainwindow.cpp \
     pages/controlpage.cpp \
     pages/sensorpage.cpp \
     pages/serialpage.cpp \
+    pages/videopage.cpp \
     workers/ap3216cworker.cpp \
-    workers/icm20608worker.cpp
+    workers/icm20608worker.cpp \
+    workers/videoworker.cpp
 
 HEADERS += \
     controller/serialcontroller.h \
@@ -32,12 +35,15 @@ HEADERS += \
     device/leddevice.h \
     device/outputdevice.h \
     device/serialdevice.h \
+    device/videodevice.h \
     mainwindow.h \
     pages/controlpage.h \
     pages/sensorpage.h \
     pages/serialpage.h \
+    pages/videopage.h \
     workers/ap3216cworker.h \
-    workers/icm20608worker.h
+    workers/icm20608worker.h \
+    workers/videoworker.h
 
 FORMS += \
     mainwindow.ui \

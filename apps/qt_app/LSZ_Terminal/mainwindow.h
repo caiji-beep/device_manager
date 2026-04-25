@@ -11,6 +11,7 @@
 #include "pages/controlpage.h"
 #include "pages/serialpage.h"
 #include "pages/sensorpage.h"
+#include "pages/videopage.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -46,6 +47,7 @@ private:
     ControlPage *m_controlPage;
     SerialPage *m_serialPage;
     SensorPage *m_sensorPage;
+    VideoPage *m_videoPage;
 };
 
 #endif // MAINWINDOW_H

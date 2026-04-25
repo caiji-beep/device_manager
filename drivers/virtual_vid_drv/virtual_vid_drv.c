@@ -329,8 +329,8 @@ static int virtual_video_s_fmt_vid_cap(struct file *file, void *priv,
 	}
 	if (!match)
 	{
-		f->fmt.pix.width = fmt->framesize[1].width;
-		f->fmt.pix.height = fmt->framesize[1].height;
+		f->fmt.pix.width = fmt->framesize[0].width;
+		f->fmt.pix.height = fmt->framesize[0].height;
 	}
 
 	f->fmt.pix.field = V4L2_FIELD_NONE; // 强制逐行扫描

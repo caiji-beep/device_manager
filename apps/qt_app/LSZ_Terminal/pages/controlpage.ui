@@ -38,7 +38,7 @@
     <item>
      <widget class="QGroupBox" name="groupBox">
       <property name="title">
-       <string>执行器控制</string>
+       <string>Actuator Control</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>

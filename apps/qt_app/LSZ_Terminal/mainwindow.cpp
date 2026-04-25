@@ -14,6 +14,7 @@ constexpr int HomePageIndex = 0;
 constexpr int ControlPageIndex = 1;
 constexpr int SerialPageIndex = 2;
 constexpr int SensorPageIndex = 3;
+constexpr int VideoPageIndex = 4;
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -27,6 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_controlPage(nullptr)
     , m_serialPage(nullptr)
     , m_sensorPage(nullptr)
+    , m_videoPage(nullptr)
 {
     ui->setupUi(this);
     setWindowTitle("LSZ Device Manager");
@@ -54,6 +56,7 @@ void MainWindow::setupPages()
     m_controlPage = new ControlPage(this);
     m_serialPage  = new SerialPage(this);
     m_sensorPage  = new SensorPage(this);
+    m_videoPage   = new VideoPage(this);
 
     m_controlPage->setDevices(&m_led, &m_beep);
     m_serialPage->setSerialDevice(&m_serial);
@@ -61,11 +64,13 @@ void MainWindow::setupPages()
     addBackButton(m_controlPage);
     addBackButton(m_serialPage);
     addBackButton(m_sensorPage);
+    addBackButton(m_videoPage);
 
     ui->PageStack->addWidget(m_homePage);
     ui->PageStack->addWidget(m_controlPage);
     ui->PageStack->addWidget(m_serialPage);
     ui->PageStack->addWidget(m_sensorPage);
+    ui->PageStack->addWidget(m_videoPage);
 
     goHome();
 
@@ -98,7 +103,7 @@ QWidget *MainWindow::createHomePage()
     title->setAlignment(Qt::AlignCenter);
     title->setObjectName("HomeTitle");
 
-    QLabel *subtitle = new QLabel("选择一个模块开始操作", page);
+    QLabel *subtitle = new QLabel("Select module", page);
     subtitle->setAlignment(Qt::AlignCenter);
     subtitle->setObjectName("HomeSubtitle");
 
@@ -106,19 +111,22 @@ QWidget *MainWindow::createHomePage()
     grid->setHorizontalSpacing(28);
     grid->setVerticalSpacing(24);
 
+    //lambda语法：[capture](parameters) -> return_type { body }
     auto createModuleButton = [page](const QString &title,
                                      const QString &detail) {
         QPushButton *button = new QPushButton(page);
-        button->setMinimumSize(240, 150);
+        button->setMinimumSize(60, 40);
         button->setCursor(Qt::PointingHandCursor);
-        button->setText(title + "\n" + detail);
+        // button->setText(title + "\n" + detail);
+        button->setText(title + detail);
         button->setObjectName("HomeModuleButton");
         return button;
     };
 
-    QPushButton *controlButton = createModuleButton("设备控制", "LED / Beep");
-    QPushButton *serialButton = createModuleButton("串口监视", "接收日志 / 发送命令");
-    QPushButton *sensorButton = createModuleButton("传感器", "AP3216C / ICM20608");
+    QPushButton *controlButton = createModuleButton("Led/Beep", "");
+    QPushButton *serialButton = createModuleButton("Serial", "");
+    QPushButton *sensorButton = createModuleButton("Sensor", "");
+    QPushButton *videoButton = createModuleButton("Video", "");
 
     connect(controlButton, &QPushButton::clicked,
             this, [this]() { showPage(ControlPageIndex); });
@@ -126,11 +134,15 @@ QWidget *MainWindow::createHomePage()
             this, [this]() { showPage(SerialPageIndex); });
     connect(sensorButton, &QPushButton::clicked,
             this, [this]() { showPage(SensorPageIndex); });
+    connect(videoButton, &QPushButton::clicked,
+            this, [this]() { showPage(VideoPageIndex); });
+    
 
     grid->addWidget(controlButton, 0, 0);
     grid->addWidget(serialButton, 0, 1);
     grid->addWidget(sensorButton, 0, 2);
-
+    grid->addWidget(videoButton, 0, 3);
+    
     root->addStretch(1);
     root->addWidget(title);
     root->addWidget(subtitle);
@@ -160,7 +172,7 @@ QWidget *MainWindow::createHomePage()
 
 void MainWindow::addBackButton(QWidget *page)
 {
-    QPushButton *backButton = new QPushButton("返回主页", page);
+    QPushButton *backButton = new QPushButton("back home", page);
     backButton->setGeometry(20, 16, 120, 40);
     backButton->setCursor(Qt::PointingHandCursor);
     backButton->raise();

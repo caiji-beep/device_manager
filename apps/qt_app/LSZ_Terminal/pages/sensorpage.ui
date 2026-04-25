@@ -35,7 +35,7 @@
     </rect>
    </property>
    <property name="title">
-    <string>光感传感器 (AP3216C)</string>
+    <string>AP3216C</string>
    </property>
    <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
@@ -132,7 +132,7 @@
     </rect>
    </property>
    <property name="title">
-    <string>六轴传感器 (ICM20608)</string>
+    <string>ICM20608</string>
    </property>
    <widget class="QLabel" name="IcmTempLabel">
     <property name="geometry">

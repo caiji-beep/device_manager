@@ -40,3 +40,7 @@ CLI 程序的作用是：
 - `docs/QT_APP_LSZ_TERMINAL.md`
 
 如果你主要关心模块链路，请结合 `docs/modules/` 下的文档阅读。
+
+
+export QT_QPA_PLATFORM=linuxfb
+./LSZ_Terminal >/dev/null 2>&1 &
