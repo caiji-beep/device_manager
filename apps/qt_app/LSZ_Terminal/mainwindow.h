@@ -28,6 +28,10 @@ private:
     void setupPages();
     void setupDevices();
     void setupSerial();
+    QWidget *createHomePage();
+    void addBackButton(QWidget *page);
+    void showPage(int index);
+    void goHome();
 
 private:
     Ui::MainWindow *ui;
@@ -37,6 +41,7 @@ private:
     SerialDevice m_serial;
     SerialController m_serialCtrl;
 
+    QWidget *m_homePage;
 
     ControlPage *m_controlPage;
     SerialPage *m_serialPage;

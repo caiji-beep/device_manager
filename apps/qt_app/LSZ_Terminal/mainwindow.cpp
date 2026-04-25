@@ -3,8 +3,18 @@
 
 #include <QMessageBox>
 #include <QStatusBar>
-#include <QListWidget>
 #include <QStackedWidget>
+#include <QGridLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
+
+namespace {
+constexpr int HomePageIndex = 0;
+constexpr int ControlPageIndex = 1;
+constexpr int SerialPageIndex = 2;
+constexpr int SensorPageIndex = 3;
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -13,11 +23,13 @@ MainWindow::MainWindow(QWidget *parent)
     , m_beep("/dev/beep")
     , m_serial(this)
     , m_serialCtrl(&m_serial, &m_led, &m_beep, this)
+    , m_homePage(nullptr)
     , m_controlPage(nullptr)
     , m_serialPage(nullptr)
     , m_sensorPage(nullptr)
 {
     ui->setupUi(this);
+    setWindowTitle("LSZ Device Manager");
 
     setupPages();  //搭建前厅界面
     setupDevices(); //唤醒本地硬件
@@ -38,6 +50,7 @@ void MainWindow::setupPages()
         page->deleteLater();
     }
 
+    m_homePage = createHomePage();
     m_controlPage = new ControlPage(this);
     m_serialPage  = new SerialPage(this);
     m_sensorPage  = new SensorPage(this);
@@ -45,18 +58,16 @@ void MainWindow::setupPages()
     m_controlPage->setDevices(&m_led, &m_beep);
     m_serialPage->setSerialDevice(&m_serial);
 
+    addBackButton(m_controlPage);
+    addBackButton(m_serialPage);
+    addBackButton(m_sensorPage);
+
+    ui->PageStack->addWidget(m_homePage);
     ui->PageStack->addWidget(m_controlPage);
     ui->PageStack->addWidget(m_serialPage);
     ui->PageStack->addWidget(m_sensorPage);
 
-    ui->NavListWidget->addItem("Device Control");
-    ui->NavListWidget->addItem("Serial Monitor");
-    ui->NavListWidget->addItem("Sensors");
-
-    connect(ui->NavListWidget, &QListWidget::currentRowChanged,
-            ui->PageStack, &QStackedWidget::setCurrentIndex);
-
-    ui->NavListWidget->setCurrentRow(0);
+    goHome();
 
     connect(m_controlPage, &ControlPage::statusMessage,
             this, [this](const QString &msg, int timeout){
@@ -72,6 +83,109 @@ void MainWindow::setupPages()
             this, [this](const QString &msg, int timeout){
         statusBar()->showMessage(msg, timeout);
     });
+}
+
+QWidget *MainWindow::createHomePage()
+{
+    QWidget *page = new QWidget(this);
+    page->setObjectName("HomePage");
+
+    QVBoxLayout *root = new QVBoxLayout(page);
+    root->setContentsMargins(80, 48, 80, 48);
+    root->setSpacing(28);
+
+    QLabel *title = new QLabel("LSZ Device Manager", page);
+    title->setAlignment(Qt::AlignCenter);
+    title->setObjectName("HomeTitle");
+
+    QLabel *subtitle = new QLabel("选择一个模块开始操作", page);
+    subtitle->setAlignment(Qt::AlignCenter);
+    subtitle->setObjectName("HomeSubtitle");
+
+    QGridLayout *grid = new QGridLayout();
+    grid->setHorizontalSpacing(28);
+    grid->setVerticalSpacing(24);
+
+    auto createModuleButton = [page](const QString &title,
+                                     const QString &detail) {
+        QPushButton *button = new QPushButton(page);
+        button->setMinimumSize(240, 150);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setText(title + "\n" + detail);
+        button->setObjectName("HomeModuleButton");
+        return button;
+    };
+
+    QPushButton *controlButton = createModuleButton("设备控制", "LED / Beep");
+    QPushButton *serialButton = createModuleButton("串口监视", "接收日志 / 发送命令");
+    QPushButton *sensorButton = createModuleButton("传感器", "AP3216C / ICM20608");
+
+    connect(controlButton, &QPushButton::clicked,
+            this, [this]() { showPage(ControlPageIndex); });
+    connect(serialButton, &QPushButton::clicked,
+            this, [this]() { showPage(SerialPageIndex); });
+    connect(sensorButton, &QPushButton::clicked,
+            this, [this]() { showPage(SensorPageIndex); });
+
+    grid->addWidget(controlButton, 0, 0);
+    grid->addWidget(serialButton, 0, 1);
+    grid->addWidget(sensorButton, 0, 2);
+
+    root->addStretch(1);
+    root->addWidget(title);
+    root->addWidget(subtitle);
+    root->addSpacing(8);
+    root->addLayout(grid);
+    root->addStretch(2);
+
+    page->setStyleSheet(
+        "#HomePage { background: #f5f7fb; }"
+        "#HomeTitle { color: #1f2937; font-size: 34px; font-weight: 700; }"
+        "#HomeSubtitle { color: #64748b; font-size: 20px; }"
+        "#HomeModuleButton {"
+        "  background: white;"
+        "  border: 1px solid #d8dee9;"
+        "  border-radius: 8px;"
+        "  color: #1f2937;"
+        "  font-size: 20px;"
+        "  line-height: 150%;"
+        "  padding: 18px;"
+        "  text-align: center;"
+        "}"
+        "#HomeModuleButton:pressed { background: #e8eef7; }"
+        "#HomeModuleButton:focus { border: 2px solid #2563eb; }");
+
+    return page;
+}
+
+void MainWindow::addBackButton(QWidget *page)
+{
+    QPushButton *backButton = new QPushButton("返回主页", page);
+    backButton->setGeometry(20, 16, 120, 40);
+    backButton->setCursor(Qt::PointingHandCursor);
+    backButton->raise();
+    backButton->setStyleSheet(
+        "QPushButton {"
+        "  background: #ffffff;"
+        "  border: 1px solid #cbd5e1;"
+        "  border-radius: 6px;"
+        "  color: #1f2937;"
+        "  font-size: 16px;"
+        "}"
+        "QPushButton:pressed { background: #e8eef7; }");
+
+    connect(backButton, &QPushButton::clicked,
+            this, &MainWindow::goHome);
+}
+
+void MainWindow::showPage(int index)
+{
+    ui->PageStack->setCurrentIndex(index);
+}
+
+void MainWindow::goHome()
+{
+    showPage(HomePageIndex);
 }
 
 void MainWindow::setupDevices()
