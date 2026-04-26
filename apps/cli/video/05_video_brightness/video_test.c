@@ -13,13 +13,13 @@
 #include <pthread.h>
 
 /* ./video_test </dev/video1>  */
-//arm-linux-gnueabihf-gcc -o video_test video_test.c -lpthread
+// arm-linux-gnueabihf-gcc -o video_test video_test.c -lpthread
 
 static void *thread_brightness_control(void *args)
 {
     if (args == NULL)
         return NULL;
-    int fd = (int)args;
+    int fd = *(int *)args;
     int c;
     int brightness;
     int delta;
@@ -55,6 +55,10 @@ static void *thread_brightness_control(void *args)
         {
             // Decrease brightness
             ctl.value -= delta;
+        }
+        else
+        {
+            continue;
         }
         if (ctl.value < qctrl.minimum)
             ctl.value = qctrl.minimum;
@@ -119,6 +123,28 @@ int main(int argc, char **argv)
             if (ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &fsenum) == 0)
             {
                 printf("format %s,%d, framesize %d: %d x %d\n", fmtdesc.description, fmtdesc.pixelformat, frame_index, fsenum.discrete.width, fsenum.discrete.height);
+                //
+                struct v4l2_frmivalenum fival;
+                memset(&fival, 0, sizeof(fival));
+                fival.index = 0; // 我们驱动里写了只支持 index 0 (即 30fps)
+                fival.pixel_format = fmtdesc.pixelformat;
+                fival.width = fsenum.discrete.width;
+                fival.height = fsenum.discrete.height;
+
+                // 向驱动发起 "火力侦察"，询问帧率
+                if (ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &fival) == 0)
+                {
+                    if (fival.type == V4L2_FRMIVAL_TYPE_DISCRETE)
+                    {
+                        // 打印帧率 (分母 / 分子，比如 30 / 1 = 30 fps)
+                        int fps = fival.discrete.denominator / fival.discrete.numerator;
+                        printf("    -> Supported FPS: %d fps\n", fps);
+                    }
+                }
+                else
+                {
+                    printf("fps enum error");
+                }
             }
             else
             {
@@ -128,6 +154,7 @@ int main(int argc, char **argv)
         }
         fmt_index++;
     }
+
     /*查询能力*/
     memset(&capability, 0, sizeof(struct v4l2_capability));
     int ret = ioctl(fd, VIDIOC_QUERYCAP, &capability);
@@ -154,7 +181,7 @@ int main(int argc, char **argv)
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.width = 1024;
     fmt.fmt.pix.height = 768;
-    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
     fmt.fmt.pix.field = V4L2_FIELD_ANY;
     if (0 == ioctl(fd, VIDIOC_S_FMT, &fmt))
     {
@@ -169,7 +196,7 @@ int main(int argc, char **argv)
     /*申请buffer*/
     struct v4l2_requestbuffers reqbufs;
     memset(&reqbufs, 0, sizeof(reqbufs));
-    reqbufs.count = 32;
+    reqbufs.count = 4;
     reqbufs.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     reqbufs.memory = V4L2_MEMORY_MMAP;
 
@@ -238,8 +265,7 @@ int main(int argc, char **argv)
 
     /*创建线程来控制亮度*/
     pthread_t thread;
-    // 最后一个参数改成 &fd，把摄像头的描述符地址传过去
-    if (pthread_create(&thread, NULL, thread_brightness_control, (void *)fd) != 0)
+    if (pthread_create(&thread, NULL, thread_brightness_control, &fd) != 0)
     {
         printf("Failed to create thread\n");
     }
@@ -271,7 +297,7 @@ int main(int argc, char **argv)
                 return -1;
             }
             /*把buffer的数据存为文件*/
-            sprintf(filename, "video_raw_data_%04d.jpg", file_cnt++);
+            sprintf(filename, "video_raw_data_%04d.yuv", file_cnt++);
             int fd_file = open(filename, O_RDWR | O_CREAT, 0666);
 
             if (fd_file < 0)
