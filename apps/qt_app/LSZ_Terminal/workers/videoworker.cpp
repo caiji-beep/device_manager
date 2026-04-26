@@ -47,6 +47,12 @@ void VideoWorker::start(const QString &devicePath, int width, int height)
     while (m_running.load()) {
         QImage image;
         if (!m_device.readFrame(&image)) {
+            if (!m_running.load()) {
+                break;
+            }
+            if (m_device.lastError() == QStringLiteral("video frame timeout")) {
+                continue;
+            }
             emit errorMessage(m_device.lastError());
             break;
         }
@@ -66,5 +72,4 @@ void VideoWorker::start(const QString &devicePath, int width, int height)
 void VideoWorker::stop()
 {
     m_running.store(false);
-    m_device.stopStream();
 }

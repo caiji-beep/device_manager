@@ -1,11 +1,12 @@
 #ifndef VIDEOPAGE_H
 #define VIDEOPAGE_H
 
+#include <QElapsedTimer>
 #include <QImage>
 #include <QWidget>
 
 class QLabel;
-class QLineEdit;
+class QComboBox;
 class QPushButton;
 class QTextEdit;
 class QThread;
@@ -18,9 +19,11 @@ class VideoPage : public QWidget
 public:
     explicit VideoPage(QWidget *parent = nullptr);
     ~VideoPage() override;
+    void stopMonitor(bool waitForFinished = false);
 
 
 private slots:
+    void onScanDevicesClicked();
     void onStartMonitorClicked();
     void onStopMonitorClicked();
     void onFrameReady(const QImage &image);
@@ -31,12 +34,15 @@ private slots:
 private:
     void initUi();
     void initConnections();
+    void refreshVideoDevices();
+    QString selectedDevicePath() const;
     void cleanupWorker();
     void appendLog(const QString &message);
 
 private:
     QLabel *m_previewLabel;
-    QLineEdit *m_devicePathEdit;
+    QComboBox *m_deviceCombo;
+    QPushButton *m_scanDevicesButton;
     QPushButton *m_startMonitorButton;
     QPushButton *m_stopMonitorButton;
     QPushButton *m_captureButton;
@@ -46,6 +52,7 @@ private:
     QThread *m_videoThread;
     VideoWorker *m_videoWorker;
     QImage m_lastFrame;
+    QElapsedTimer m_frameUpdateTimer;
 };
 
 #endif // VIDEOPAGE_H

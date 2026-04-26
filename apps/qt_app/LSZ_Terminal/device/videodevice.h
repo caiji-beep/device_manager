@@ -3,6 +3,7 @@
 
 #include <QImage>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 class VideoDevice
@@ -10,6 +11,8 @@ class VideoDevice
 public:
     VideoDevice();
     ~VideoDevice();
+
+    static QStringList availableDevices();
 
     bool openDevice(const QString &devicePath);
     bool initMjpeg(int width, int height);
@@ -26,11 +29,14 @@ private:
     };
 
 private:
+    bool configureFrameRate(int fps);
+    bool waitForFrame(int timeoutMs);
     bool xioctl(unsigned long request, void *arg);
     void setError(const QString &message);
     void unmapBuffers();
 
 private:
+    QString m_devicePath;
     int m_fd;
     QVector<Buffer> m_buffers;
     bool m_streaming;
