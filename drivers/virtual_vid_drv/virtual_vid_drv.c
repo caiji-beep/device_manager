@@ -9,34 +9,14 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 
-/* Virtual Camera API commands (from Virtual Library) */
-enum
-{
-	CMD_INVALID = 0x00,
-	CMD_RECEIVER_MODE = 0x01,
-	CMD_SI5351C_WRITE = 0x02,
-	CMD_SI5351C_READ = 0x03,
-	CMD_R820T_WRITE = 0x04,
-	CMD_R820T_READ = 0x05,
-	CMD_SPIFLASH_ERASE = 0x06,
-	CMD_SPIFLASH_WRITE = 0x07,
-	CMD_SPIFLASH_READ = 0x08,
-	CMD_BOARD_ID_READ = 0x09,
-	CMD_VERSION_STRING_READ = 0x0a,
-	CMD_BOARD_PARTID_SERIALNO_READ = 0x0b,
-	CMD_SET_SAMPLE_RATE = 0x0c,
-	CMD_SET_FREQ = 0x0d,
-	CMD_SET_LNA_GAIN = 0x0e,
-	CMD_SET_MIXER_GAIN = 0x0f,
-	CMD_SET_VGA_GAIN = 0x10,
-	CMD_SET_LNA_AGC = 0x11,
-	CMD_SET_MIXER_AGC = 0x12,
-	CMD_SET_PACKING = 0x13,
-};
+#include "yellow_640x480.h"
+#include "cyan_640x480.h"
+#include "magenta_640x480.h"
 
 #define VIRTUAL_VIDEO_BUFFER_SIZE (2 * 800 * 600)
+#define VIRTUAL_VIDEO_MIN_BUFFERS 8
 
-extern unsigned char red[8230];
+extern unsigned char red[8230]; // 800x600
 extern unsigned char green[8265];
 extern unsigned char blue[8267];
 
@@ -131,6 +111,9 @@ struct virtual_video
 
 	int autobrightness;
 	int brightness;
+
+	struct v4l2_ctrl *ctrl_test_pattern;
+	int test_pattern;
 };
 
 /* Videobuf2 operations */
@@ -147,9 +130,8 @@ static int virtual_video_queue_setup(struct vb2_queue *vq,
 		return -EINVAL;
 	}
 
-	/* Need at least 8 buffers */
-	if (vq->num_buffers + *nbuffers < 8)
-		*nbuffers = 8 - vq->num_buffers;
+	if (vq->num_buffers + *nbuffers < VIRTUAL_VIDEO_MIN_BUFFERS)
+		*nbuffers = VIRTUAL_VIDEO_MIN_BUFFERS - vq->num_buffers;
 	*nplanes = 1;
 
 	if (vvid->current_fmt->pixelformat == V4L2_PIX_FMT_YUYV)
@@ -288,18 +270,13 @@ static int virtual_video_g_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int virtual_video_s_fmt_vid_cap(struct file *file, void *priv,
-									   struct v4l2_format *f)
+// 核心公共函数：只协商（批改作业），不应用（不存入 vvid）
+static int virtual_video_try_fmt(struct v4l2_format *f, struct virtual_video_format **out_fmt)
 {
-	struct virtual_video *vvid = video_drvdata(file);
-	struct vb2_queue *q = &vvid->vb_queue;
 	struct virtual_video_format *fmt = NULL;
-
 	int i, match;
 
-	if (vb2_is_busy(q))
-		return -EBUSY;
-
+	// 1. 协商格式
 	for (i = 0; i < NUM_FORMATS; i++)
 	{
 		if (f->fmt.pix.pixelformat == formats[i].pixelformat)
@@ -308,21 +285,19 @@ static int virtual_video_s_fmt_vid_cap(struct file *file, void *priv,
 			break;
 		}
 	}
-
-	// 1.协商格式
 	if (fmt == NULL)
 	{
 		f->fmt.pix.pixelformat = formats[0].pixelformat;
 		fmt = &formats[0];
 	}
 
-	// 2.协商帧大小
+	// 2. 协商帧大小
 	match = 0;
 	for (i = 0; i < fmt->num_size; i++)
 	{
-		if (f->fmt.pix.width == fmt->framesize[i].width && f->fmt.pix.height == fmt->framesize[i].height)
+		if (f->fmt.pix.width == fmt->framesize[i].width &&
+			f->fmt.pix.height == fmt->framesize[i].height)
 		{
-
 			match = 1;
 			break;
 		}
@@ -333,6 +308,7 @@ static int virtual_video_s_fmt_vid_cap(struct file *file, void *priv,
 		f->fmt.pix.height = fmt->framesize[0].height;
 	}
 
+	// 3. 规范化必要的字段
 	f->fmt.pix.field = V4L2_FIELD_NONE; // 强制逐行扫描
 
 	if (fmt->pixelformat == V4L2_PIX_FMT_YUYV)
@@ -346,6 +322,32 @@ static int virtual_video_s_fmt_vid_cap(struct file *file, void *priv,
 		f->fmt.pix.sizeimage = fmt->buffersize;
 	}
 
+	// 传出解析好的格式指针，方便 s_fmt 使用
+	if (out_fmt)
+		*out_fmt = fmt;
+
+	return 0;
+}
+
+// 供 V4L2 ioctl 调用的 try_fmt
+static int virtual_video_try_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f)
+{
+	return virtual_video_try_fmt(f, NULL);
+}
+
+static int virtual_video_s_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f)
+{
+	struct virtual_video *vvid = video_drvdata(file);
+	struct virtual_video_format *fmt;
+
+	// 如果已经在流传输（采集）中了，决不允许更改格式！
+	if (vb2_is_busy(&vvid->vb_queue))
+		return -EBUSY;
+
+	// 1. 调用公共函数进行协商，得到标准化的 f 和对应的 fmt 指针
+	virtual_video_try_fmt(f, &fmt);
+
+	// 2. 正式应用：把格式写进大本营的内存里
 	vvid->current_fmt = fmt;
 	vvid->current_width = f->fmt.pix.width;
 	vvid->current_height = f->fmt.pix.height;
@@ -372,11 +374,88 @@ static int virtual_querycap(struct file *file, void *fh,
 	return 0;
 }
 
+static int virtual_video_enum_frameintervals(struct file *file, void *priv, struct v4l2_frmivalenum *fival)
+{
+	struct virtual_video_format *fmt = NULL;
+	int i, match = 0;
+
+	// 我们只有一种帧率 (30fps)，所以 index 只要大于 0 就返回无效
+	if (fival->index >= 1)
+		return -EINVAL;
+
+	// 检查 APP 询问的格式我们支不支持
+	for (i = 0; i < NUM_FORMATS; i++)
+	{
+		if (formats[i].pixelformat == fival->pixel_format)
+		{
+			fmt = &formats[i];
+			break;
+		}
+	}
+	if (!fmt)
+		return -EINVAL;
+
+	// 检查 APP 询问的分辨率我们支不支持
+	for (i = 0; i < fmt->num_size; i++)
+	{
+		if (fival->width == fmt->framesize[i].width &&
+			fival->height == fmt->framesize[i].height)
+		{
+			match = 1;
+			break;
+		}
+	}
+	if (!match)
+		return -EINVAL;
+
+	// 告诉 APP：固定帧率，分子 1，分母 30 (代表 1/30 秒一帧，即 30fps)
+	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	fival->discrete.numerator = 1;
+	fival->discrete.denominator = 30;
+	printk("virtual_video_enum_frameintervals");
+
+	return 0;
+}
+
+static int virtual_video_g_parm(struct file *file, void *priv, struct v4l2_streamparm *a)
+{
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	a->parm.capture.timeperframe.numerator = 1;
+	a->parm.capture.timeperframe.denominator = 30;
+	a->parm.capture.readbuffers = 1;
+
+	return 0;
+}
+
+static int virtual_video_s_parm(struct file *file, void *priv, struct v4l2_streamparm *a)
+{
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+
+	// 强制把 APP 传下来的数值覆盖成我们的 30fps
+	a->parm.capture.timeperframe.numerator = 1;
+	a->parm.capture.timeperframe.denominator = 30;
+	a->parm.capture.readbuffers = 1;
+
+	return 0;
+}
+
 static const struct v4l2_ioctl_ops virtual_video_ioctl_ops = {
 	.vidioc_querycap = virtual_querycap,
 
 	.vidioc_enum_fmt_vid_cap = virtual_video_enum_fmt_vid_cap,
 	.vidioc_enum_framesizes = virtual_video_enum_framesizes,
+
+	.vidioc_try_fmt_vid_cap = virtual_video_try_fmt_vid_cap,
+	.vidioc_enum_frameintervals = virtual_video_enum_frameintervals,
+	.vidioc_g_parm = virtual_video_g_parm,
+	.vidioc_s_parm = virtual_video_s_parm,
+
 	.vidioc_g_fmt_vid_cap = virtual_video_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap = virtual_video_s_fmt_vid_cap,
 
@@ -441,34 +520,125 @@ static void virtual_video_timer_callback(unsigned long data)
 
 	if (vvid->current_fmt->pixelformat == V4L2_PIX_FMT_YUYV)
 	{
-		payload_size = vvid->current_width * vvid->current_height * 2;
-		memset(vaddr, 0x80, payload_size);
+		unsigned char *p = vaddr;
+		int width = vvid->current_width;
+		int height = vvid->current_height;
+		int x, y;
+		unsigned char Y, U, V;
+
+		// 运动方块的坐标：随着 sequence 帧号增加而不断右移、下移
+		int sq_x = (vvid->sequence * 10) % width;
+		int sq_y = (vvid->sequence * 10) % height;
+		int sq_size = 100; // 方块长宽 100 像素
+
+		payload_size = width * height * 2;
+
+		// 遍历屏幕上的每一个像素！
+		for (y = 0; y < height; y++)
+		{
+			for (x = 0; x < width; x += 2)
+			{ // 每次处理 2 个像素 (4个字节)
+
+				// 默认背景：受到我们手动亮度滑块 (vvid->brightness) 实时控制的灰色！
+				Y = vvid->brightness;
+				U = 128;
+				V = 128;
+
+				if (vvid->test_pattern == 1)
+				{
+					// 模式 1：动态运动方块 (白色)
+					// 极度适合测试采集延迟！
+					if (x >= sq_x && x < sq_x + sq_size && y >= sq_y && y < sq_y + sq_size)
+					{
+						Y = 255;
+						U = 128;
+						V = 128; // 高亮白色
+					}
+				}
+				else if (vvid->test_pattern == 2)
+				{
+					// 模式 2：简易三色彩条
+					if (x < width / 3)
+					{
+						Y = 76;
+						U = 84;
+						V = 255;
+					} // 蓝条
+					else if (x < width * 2 / 3)
+					{
+						Y = 149;
+						U = 43;
+						V = 21;
+					} // 绿条
+					else
+					{
+						Y = 76;
+						U = 255;
+						V = 104;
+					} // 红条
+				}
+
+				// 模式 0 什么都不做，就是全屏由 brightness 控制的灰度图
+
+				// 将像素写入内存 (Y0 U0 Y1 V0)
+				*p++ = Y; // 第1个像素的亮度
+				*p++ = U; // 共用的色度U
+				*p++ = Y; // 第2个像素的亮度
+				*p++ = V; // 共用的色度V
+			}
+		}
 	}
 	else
 	{
-		if (vvid->frame_index < 30)
+		if (vvid->current_width == 640 && vvid->current_height == 480)
 		{
-			payload_size = sizeof(red);
-			memcpy(vaddr, red, payload_size);
+			if (vvid->frame_index < 30)
+			{
+				payload_size = sizeof(pic_cyan);
+				memcpy(vaddr, pic_cyan, payload_size);
+			}
+			else if (vvid->frame_index < 60)
+			{
+				payload_size = sizeof(pic_magenta);
+				memcpy(vaddr, pic_magenta, payload_size);
+			}
+			else if (vvid->frame_index < 90)
+			{
+				payload_size = sizeof(pic_yellow);
+				memcpy(vaddr, pic_yellow, payload_size);
+			}
+			else
+			{
+				payload_size = sizeof(pic_cyan);
+				memcpy(vaddr, pic_cyan, payload_size);
+			}
 		}
-		else if (vvid->frame_index < 60)
+		else if (vvid->current_width == 800 && vvid->current_height == 600)
 		{
-			payload_size = sizeof(green);
-			memcpy(vaddr, green, payload_size);
-		}
-		else if (vvid->frame_index < 90)
-		{
-			payload_size = sizeof(blue);
-			memcpy(vaddr, blue, payload_size);
-		}
-		else
-		{
-			payload_size = sizeof(red);
-			memcpy(vaddr, red, payload_size);
+			if (vvid->frame_index < 30)
+			{
+				payload_size = sizeof(red);
+				memcpy(vaddr, red, payload_size);
+			}
+			else if (vvid->frame_index < 60)
+			{
+				payload_size = sizeof(green);
+				memcpy(vaddr, green, payload_size);
+			}
+			else if (vvid->frame_index < 90)
+			{
+				payload_size = sizeof(blue);
+				memcpy(vaddr, blue, payload_size);
+			}
+			else
+			{
+				payload_size = sizeof(red);
+				memcpy(vaddr, red, payload_size);
+			}
 		}
 	}
 	vvid->frame_index++;
-	if (vvid->frame_index <= 90)
+	if (vvid->frame_index >= 90)
 	{
 		vvid->frame_index = 0;
 	}
@@ -482,19 +652,19 @@ out:
 	mod_timer(&vvid->my_timer, jiffies + HZ / 30);
 }
 
-static int virtual_video_set_brightness(struct virtual_video *vvid, int is_auto,int brightness_num)
+static int virtual_video_set_brightness(struct virtual_video *vvid, int is_auto, int brightness_num)
 {
 	int ret = 0;
 	vvid->autobrightness = is_auto;
 	vvid->brightness = brightness_num;
-	if(is_auto)
+	if (is_auto)
 	{
 		pr_info("virtual_video: Auto-Brightness ON! Hardware takes over.\n");
 	}
 	else
 	{
 		pr_info("virtual_video: Auto-Brightness OFF! Manual set to %d\n", vvid->brightness);
-	}	
+	}
 
 	return ret;
 }
@@ -502,12 +672,17 @@ static int virtual_video_set_brightness(struct virtual_video *vvid, int is_auto,
 static int virtual_video_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct virtual_video *vvid = container_of(ctrl->handler, struct virtual_video, hdl);
-	int ret;
+	int ret = 0;
 
 	switch (ctrl->id)
 	{
 	case V4L2_CID_AUTOBRIGHTNESS:
-		ret = virtual_video_set_brightness(vvid, ctrl->val,ctrl->cluster[1]->val);
+		ret = virtual_video_set_brightness(vvid, ctrl->val, ctrl->cluster[1]->val);
+		break;
+
+	case V4L2_CID_TEST_PATTERN:
+		vvid->test_pattern = ctrl->val;
+		pr_info("virtual_video: Test pattern changed to %d\n", vvid->test_pattern);
 		break;
 
 	default:
@@ -518,6 +693,13 @@ static int virtual_video_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	return ret;
 }
+
+static const char * const test_pattern_menu[] = {
+    "0 - Disabled (Gray Background)",
+    "1 - Moving White Square",
+    "2 - Color Bars",
+    NULL
+};
 
 static const struct v4l2_ctrl_ops virtual_video_ctrl_ops = {
 	.s_ctrl = virtual_video_s_ctrl,
@@ -538,12 +720,15 @@ static int __init virtual_video_init(void)
 
 	g_vvid = vvid;
 	vvid->frame_index = 0;
+	vvid->autobrightness = 0;
+	vvid->brightness = 128;
+	vvid->test_pattern = 0;
 
 	setup_timer(&vvid->my_timer, virtual_video_timer_callback, (unsigned long)vvid);
 
 	vvid->current_fmt = &formats[0];					   // 默认MJPEG
-	vvid->current_width = formats[0].framesize[1].width;   // 默认800
-	vvid->current_height = formats[0].framesize[1].height; // 默认600
+	vvid->current_width = formats[0].framesize[0].width;   // 默认600
+	vvid->current_height = formats[0].framesize[0].height; // 默认480
 
 	/**
 	 * APP 1 正在调用 ioctl(VIDIOC_S_FMT) 设置分辨率为 1080p（这个过程可能涉及到很复杂的计算，耗时较长）。
@@ -589,15 +774,18 @@ static int __init virtual_video_init(void)
 	}
 
 	/* Register controls */
-	v4l2_ctrl_handler_init(&vvid->hdl, 2);
+	v4l2_ctrl_handler_init(&vvid->hdl, 3);
 
 	// 参数：句柄, ops, ID, 最小值, 最大值, 步长, 默认值
 	vvid->ctrl_brightness_auto = v4l2_ctrl_new_std(&vvid->hdl, &virtual_video_ctrl_ops,
-								 V4L2_CID_AUTOBRIGHTNESS, 0, 1, 1, 1);
+												   V4L2_CID_AUTOBRIGHTNESS, 0, 1, 1, 0); // 默认手动调节亮度
 	vvid->ctrl_brightness = v4l2_ctrl_new_std(&vvid->hdl, &virtual_video_ctrl_ops,
-					  		V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
-	
-	v4l2_ctrl_auto_cluster(2,&vvid->ctrl_brightness_auto,0,false);
+											  V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+
+    vvid->ctrl_test_pattern = v4l2_ctrl_new_std_menu_items(&vvid->hdl, &virtual_video_ctrl_ops,
+                                                           V4L2_CID_TEST_PATTERN, 2, 0, 0, 
+                                                           test_pattern_menu);
+	v4l2_ctrl_auto_cluster(2, &vvid->ctrl_brightness_auto, 0, false);
 
 	if (vvid->hdl.error)
 	{
