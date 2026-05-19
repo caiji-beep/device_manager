@@ -15,6 +15,7 @@ constexpr int ControlPageIndex = 1;
 constexpr int SerialPageIndex = 2;
 constexpr int SensorPageIndex = 3;
 constexpr int VideoPageIndex = 4;
+constexpr int GalleryPageIndex = 5;
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -29,6 +30,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_serialPage(nullptr)
     , m_sensorPage(nullptr)
     , m_videoPage(nullptr)
+    , m_galleryPage(nullptr)
 {
     ui->setupUi(this);
     setWindowTitle("LSZ Device Manager");
@@ -57,6 +59,7 @@ void MainWindow::setupPages()
     m_serialPage  = new SerialPage(this);
     m_sensorPage  = new SensorPage(this);
     m_videoPage   = new VideoPage(this);
+    m_galleryPage = new GalleryPage(this);
 
     m_controlPage->setDevices(&m_led, &m_beep);
     m_serialPage->setSerialDevice(&m_serial);
@@ -65,12 +68,14 @@ void MainWindow::setupPages()
     addBackButton(m_serialPage);
     addBackButton(m_sensorPage);
     addBackButton(m_videoPage);
+    addBackButton(m_galleryPage);
 
     ui->PageStack->addWidget(m_homePage);
     ui->PageStack->addWidget(m_controlPage);
     ui->PageStack->addWidget(m_serialPage);
     ui->PageStack->addWidget(m_sensorPage);
     ui->PageStack->addWidget(m_videoPage);
+    ui->PageStack->addWidget(m_galleryPage);
 
     goHome();
 
@@ -87,6 +92,17 @@ void MainWindow::setupPages()
     connect(m_sensorPage, &SensorPage::statusMessage,
             this, [this](const QString &msg, int timeout){
         statusBar()->showMessage(msg, timeout);
+    });
+
+    connect(m_galleryPage, &GalleryPage::statusMessage,
+            this, [this](const QString &msg, int timeout){
+        statusBar()->showMessage(msg, timeout);
+    });
+
+    connect(m_videoPage, &VideoPage::mediaSaved,
+            this, [this](const QString &path) {
+        m_galleryPage->refresh();
+        statusBar()->showMessage("Media saved: " + path, 3000);
     });
 }
 
@@ -127,6 +143,7 @@ QWidget *MainWindow::createHomePage()
     QPushButton *serialButton = createModuleButton("Serial", "");
     QPushButton *sensorButton = createModuleButton("Sensor", "");
     QPushButton *videoButton = createModuleButton("Video", "");
+    QPushButton *galleryButton = createModuleButton("Gallery", "");
 
     connect(controlButton, &QPushButton::clicked,
             this, [this]() { showPage(ControlPageIndex); });
@@ -136,12 +153,18 @@ QWidget *MainWindow::createHomePage()
             this, [this]() { showPage(SensorPageIndex); });
     connect(videoButton, &QPushButton::clicked,
             this, [this]() { showPage(VideoPageIndex); });
+    connect(galleryButton, &QPushButton::clicked,
+            this, [this]() {
+        m_galleryPage->refresh();
+        showPage(GalleryPageIndex);
+    });
     
 
     grid->addWidget(controlButton, 0, 0);
     grid->addWidget(serialButton, 0, 1);
     grid->addWidget(sensorButton, 0, 2);
     grid->addWidget(videoButton, 0, 3);
+    grid->addWidget(galleryButton, 0, 4);
     
     root->addStretch(1);
     root->addWidget(title);

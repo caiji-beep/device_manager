@@ -18,7 +18,9 @@ public:
     ~VideoWorker() override;
 
 public slots:
-    void start(const QString &devicePath, int width, int height);
+    void start(const QString &devicePath, quint32 pixelFormat, int width, int height);
+    void setBrightness(int value);
+    void setTestPattern(int value);
     void stop();
 
 signals:

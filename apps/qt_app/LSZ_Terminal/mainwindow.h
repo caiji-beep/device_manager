@@ -12,6 +12,7 @@
 #include "pages/serialpage.h"
 #include "pages/sensorpage.h"
 #include "pages/videopage.h"
+#include "pages/gallerypage.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -48,6 +49,7 @@ private:
     SerialPage *m_serialPage;
     SensorPage *m_sensorPage;
     VideoPage *m_videoPage;
+    GalleryPage *m_galleryPage;
 };
 
 #endif // MAINWINDOW_H

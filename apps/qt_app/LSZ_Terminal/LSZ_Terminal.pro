@@ -17,9 +17,12 @@ SOURCES += \
     device/outputdevice.cpp \
     device/serialdevice.cpp \
     device/videodevice.cpp \
+    media/aviwriter.cpp \
+    media/mediastore.cpp \
     main.cpp \
     mainwindow.cpp \
     pages/controlpage.cpp \
+    pages/gallerypage.cpp \
     pages/sensorpage.cpp \
     pages/serialpage.cpp \
     pages/videopage.cpp \
@@ -36,8 +39,11 @@ HEADERS += \
     device/outputdevice.h \
     device/serialdevice.h \
     device/videodevice.h \
+    media/aviwriter.h \
+    media/mediastore.h \
     mainwindow.h \
     pages/controlpage.h \
+    pages/gallerypage.h \
     pages/sensorpage.h \
     pages/serialpage.h \
     pages/videopage.h \
